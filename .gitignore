@@ -1,0 +1,24 @@
+# Training data: supplied by each user, never committed (see training/README.md)
+training/*
+!training/README.md
+
+# Trained models and generated output
+artifacts/*
+!artifacts/.gitkeep
+generated/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,63 @@
+[project]
+name = "gaussianfreak"
+version = "0.1.0"
+description = "Train a Gaussian copula model on MicroFreak presets and generate new Arturia MicroFreak presets from it."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "ThisFreakDoesntExist" }]
+dependencies = [
+    "numpy>=2.1",
+    "typer>=0.15",
+]
+
+[project.scripts]
+gaussianfreak = "gaussianfreak.cli:app"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gaussianfreak"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers"]
+filterwarnings = ["error"]
+markers = [
+    "training_data: needs preset files under training/ (skipped when absent)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "PL"]
+ignore = [
+    "E501",     # line length is owned by `ruff format`; long docstrings and URLs are fine
+    "PLR0913",  # model and generation entry points take several tuning parameters
+    "PLR2004",  # binary format offsets and byte markers read best inline
+    "N803",     # X / R matrix argument names follow statistics convention
+    "N806",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/gaussianfreak/cli.py" = ["PLR0917"]  # Typer commands declare every option as a parameter
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+mypy_path = "src"
+packages = ["gaussianfreak"]
