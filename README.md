@@ -1,21 +1,15 @@
 # GaussianFreak
 
-New presets for the Arturia MicroFreak, generated with statistics rather than deep learning. They probably
-don't exist.
+Microfreak presets autogened through stats (sorry no deep learning). They probably don't exist.
 
-You give GaussianFreak a folder of MicroFreak presets. It learns how each parameter tends to be set, and which
-parameters move together, then invents new presets that follow the same patterns. The results should sound like
-they belong on the synth without being copies of anything you fed it.
+Give GaussianFreak a folder of MicroFreak presets. It learns correlations between parameters so what comes out of it should mostly sound like what reasonably would be called "musical". Player beware, some really suck. But thats just the roll of the dice
 
 No presets or trained models come with this repository. You bring your own presets and train your own model.
 
 ## Inspiration
 
-This project owes its idea, and its name, to [NeuralDX7](https://github.com/Nintorac/NeuralDX7), the model
-behind [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/). NeuralDX7 trains a variational
-autoencoder on Yamaha DX7 patches. GaussianFreak asks the same question of the MicroFreak with a much smaller
-tool: a Gaussian copula. A few thousand presets are nowhere near enough to train a neural network, but they are
-plenty to learn each knob's distribution and how the knobs relate.
+This project is entirely inspired by [NeuralDX7](https://github.com/Nintorac/NeuralDX7), the model
+behind [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/). NeuralDX7 trains on a lot more data and uses a VAE on Yamaha DX7 patches. GaussianFreak tries to accomplish the same thing, but with much less data and way more parameters. If you like what you hear, check out the inspiration and don't be afraid to check out the free DX7 synth emulation plugin [Dexed](https://github.com/asb2m10/dexed)
 
 ## Getting started
 
