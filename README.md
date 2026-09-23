@@ -2,83 +2,105 @@
 
 Microfreak presets autogened through stats (sorry no deep learning). They probably don't exist.
 
-GaussianFreak learns from your own Arturia MicroFreak presets how each parameter is distributed and how parameters
-move together, then samples new presets that are neither near-copies of real ones nor random knob settings. No
-presets or trained models ship with this repository: bring your own presets, train your own model.
+Give GaussianFreak a folder of MicroFreak presets. It learns correlations between parameters so what comes out of it should mostly sound like what reasonably would be called "musical". Player beware, some really suck. But thats just the roll of the dice
 
-## Quick start
+No presets or trained models come with this repository. You bring your own presets and train your own model.
 
-Requirements: [uv](https://docs.astral.sh/uv/). uv installs Python 3.12 if needed.
+## Inspiration
+
+This project is entirely inspired by [NeuralDX7](https://github.com/Nintorac/NeuralDX7), the model
+behind [This DX7 Cart Does Not Exist](https://www.thisdx7cartdoesnotexist.com/). NeuralDX7 trains on a lot more data and uses a VAE on Yamaha DX7 patches. GaussianFreak tries to accomplish the same thing, but with much less data and way more parameters. If you like what you hear, check out the inspiration and don't be afraid to check out the free DX7 synth emulation plugin [Dexed](https://github.com/asb2m10/dexed)
+
+## Getting started
+
+You need [uv](https://docs.astral.sh/uv/), which will fetch Python 3.12 for you if you don't have it.
 
 ```sh
 uv sync
-# put preset files you exported from MIDI Control Center under training/ (see training/README.md)
-uv run gaussianfreak train                                       # -> artifacts/copula-model.pkl (about 20 s)
-uv run gaussianfreak generate --engine Wavetable --category Pad --count 8   # -> generated/
+
+# 1. Copy presets exported from MIDI Control Center into training/ (see training/README.md).
+
+# 2. Train. Takes about 20 seconds and writes artifacts/copula-model.pkl.
+uv run gaussianfreak train
+
+# 3. Generate eight Wavetable pads into generated/.
+uv run gaussianfreak generate --engine Wavetable --category Pad --count 8
 ```
 
-`generate` writes `generated/<bank>/*.mfpz` (single presets MIDI Control Center imports), `generated/<bank>.mfprojz`
-(a 512-slot bank) and `generated/<bank>.csv`, which lists each preset's engine, category and nearest real preset.
-Leave out `--engine` to mix engines; `--seed`, `--bank` and `--out` are optional. `gaussianfreak --help` lists
-everything.
+For each run, `generate` writes:
 
-The trained model is a Python pickle. Only load models you trained yourself.
+- `generated/<bank>/*.mfpz`: single presets that MIDI Control Center can import;
+- `generated/<bank>.mfprojz`: the same presets as a full 512-slot bank;
+- `generated/<bank>.csv`: each preset's engine and category, and the real preset it is closest to.
 
-## How the model works
+Leave out `--engine` to get a mix of engines. `--seed`, `--bank` and `--out` are optional, and
+`uv run gaussianfreak --help` lists everything else.
 
-1. **Data** (`dataset.py`). Every preset under `training/` is read, including presets inside zips and banks.
-   Byte-identical copies count once, and so do presets that differ only in arpeggiator, sequencer or key
-   mapping. Presets that need user samples or wavetables are dropped.
-2. **Fields** (`fields.py`). Only sound fields are modelled, including keyboard octave. Arpeggiator, sequencer, key
-   mapping, system fields, sample references and the engine itself are not. A field is modelled on an engine
-   when at least half its presets have it, or at least 30 do. Each field is one of:
-   - `continuous`, a knob;
-   - `discrete`, snapping to observed values;
-   - `bipolar`, a mod amount;
-   - `categorical`, a mod destination.
-3. **Model** (`model/`), one per oscillator engine:
-   - every field keeps its **exact real distribution**, including point masses such as unused mod routes and
-     knobs parked at 0% or 100%. Sampling never interpolates out of a point mass;
-   - a **Gaussian copula** carries how fields move together. It is calibrated so that simulated rank
-     correlations match the real ones;
-   - engines with few presets **borrow correlation** from a copula pooled over all engines, with weight
-     `50 / (50 + n)`. Oscillator knobs are the exception, because their meaning is engine-specific;
-   - categories with at least 12 presets on an engine get their own field distributions;
-   - the envelope (EG1) and LFO are taken as a set from one real preset of the same engine and category, because
-     sampling their fields one by one loses the shapes real presets use;
-   - assignable mod destinations are labels, not amounts. They stay out of the copula, and each sample takes a
-     whole real destination trio from presets whose assignable mod columns are active in the same pattern.
-4. **Generation** (`generate.py`). Every preset starts from the MicroFreak's Init preset (`model/init.mfp`, the
-   device default as exported in github.com/feakk/Microfreak), whatever its engine. The engine is set in
-   `VCO.Type` and the sampled values are written in. Every other sound field gets the engine's most common value
-   in the training presets, so nothing of Init's own sound remains where real presets differ. The arpeggiator,
-   sequencer and hold are switched off. A sample closer to a real preset than half that engine's 5th-percentile
-   real gap is rejected as a near-copy.
+One warning: the trained model is saved as a Python pickle, and loading a pickle can run code. Only load models
+you trained yourself.
 
-## Layout
+## How it works
+
+**Reading the presets** (`dataset.py`). Every preset under `training/` is read, including those inside zips and
+banks. Duplicates count once, and so do presets that only differ in their arpeggiator, sequencer or key mapping.
+Presets that rely on your own samples or wavetables are left out, since they won't sound right without those
+files.
+
+**Choosing what to learn** (`fields.py`). Only the parameters that shape the sound are modelled, keyboard octave
+included. The arpeggiator, sequencer, key mapping, system settings and sample references are not, and neither is
+the engine, which you choose. Each parameter is treated as one of four kinds:
+
+- a knob (continuous);
+- a switch or stepped control that snaps to values real presets use (discrete);
+- a mod matrix amount, which can be negative (bipolar);
+- a mod destination, which is a label rather than a number (categorical).
+
+**The model** (`model/`). There is one model per oscillator engine.
+
+- Every parameter keeps its exact real distribution. If most presets leave a mod route at zero or park a knob
+  at 100%, generated presets do too, instead of getting some value close by.
+- A Gaussian copula captures how parameters move together, for example filter cutoff with envelope amount. It is
+  tuned so that generated presets show the same correlations as real ones.
+- Engines with few presets borrow some correlation structure from all engines combined, with weight
+  `50 / (50 + n)` for an engine with `n` presets. The oscillator knobs are the exception, since they mean
+  something different on every engine.
+- A category with at least 12 presets on an engine (Pads on Wavetable, say) gets its own parameter distributions.
+- The envelope and LFO are copied as a set from one real preset of the same engine and category. Drawing their
+  settings one at a time produced shapes no one would dial in.
+- Assignable mod destinations are copied as a group of three from a real preset whose mod routing looks the
+  same.
+
+**Generating** (`generate.py`). Every new preset starts from the MicroFreak's factory Init preset
+(`model/init.mfp`, as exported in [feakk/Microfreak](https://github.com/feakk/Microfreak)). GaussianFreak then
+sets the engine and writes in the sampled values. Any sound parameter the model doesn't sample gets the value
+real presets of that engine use most often, so nothing of the Init sound is left over. The arpeggiator,
+sequencer and hold are switched off. If a new preset lands too close to one of your real presets, it is thrown
+away and drawn again.
+
+## Project layout
 
 ```
 src/gaussianfreak/
-├── formats/      preset text codec, 7-bit body packing and tagged fields, banks, zip containers
-├── dataset.py    training folder scan, deduplication, exclusions
-├── fields.py     which fields are sound, and their kinds
-├── model/        empirical Gaussian copula, destination sampler, per-engine model, Init preset
-├── train.py      scan, fit, save
+├── formats/      reading and writing preset files, banks and zip containers
+├── dataset.py    scanning the training folder, removing duplicates and unusable presets
+├── fields.py     which parameters are sound parameters, and what kind each one is
+├── model/        the copula, mod destination sampling, per-engine models, the Init preset
+├── train.py      scan, fit and save
 ├── generate.py   sampling, near-copy rejection, bank export
-└── cli.py        `gaussianfreak train | generate`
+└── cli.py        the `gaussianfreak train` and `gaussianfreak generate` commands
 tests/
-├── unit/         synthetic presets, no training data needed
-└── integration/  real presets (skipped when training/ is empty)
+├── unit/         run on synthetic presets, so they need no training data
+└── integration/  run on whatever is in training/, and skip what your library is too small for
 ```
 
 ## Development
 
 ```sh
-uv run pytest                          # all tests (integration tests skip without training data)
+uv run pytest                                           # integration tests skip when training/ is empty
 uv run ruff format src tests && uv run ruff check src tests
 uv run mypy
 ```
 
 ## License
 
-MIT. MicroFreak and MIDI Control Center are trademarks of Arturia; this project is not affiliated with Arturia.
+MIT. MicroFreak and MIDI Control Center are trademarks of Arturia. This project is not affiliated with Arturia.
