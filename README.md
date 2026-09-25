@@ -101,6 +101,17 @@ uv run ruff format src tests && uv run ruff check src tests
 uv run mypy
 ```
 
+## Vibe coded
+
+This project was vibe coded: most of the code, tests and docs were written by an AI coding assistant
+([Claude Code](https://claude.com/claude-code)) from prompts, then run, tested and steered by a human. Read and test
+it the way you would any code you didn't write yourself.
+
+## Contributors
+
+- [ThisFreakDoesntExist](https://github.com/ThisFreakDoesntExist)
+- [Claude](https://claude.com/claude-code) (Anthropic's AI coding assistant)
+
 ## License
 
 MIT. MicroFreak and MIDI Control Center are trademarks of Arturia. This project is not affiliated with Arturia.
